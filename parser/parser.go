@@ -1,248 +1,165 @@
 package parser
 
 import (
-	"bytes"
-	"errors"
-	"fmt"
+	"strconv"
 )
 
 // === Main Structures ===
 type GCEvent struct {
-	BeforeSize string // In KB
-	AfterSize  string // In KB
-	TotalSize  string // In KB
+	BeforeSize int // In KB
+	AfterSize  int // In KB
+	TotalSize  int // In KB
 }
 
 type GCLog struct {
-	Type     string // GC or Full GC
-	Reason   string
-	Event    GCEvent
-	Time     string // In Seconds
-	YoungGen struct {
-		Type  string // Normally PSYoungGen
+	Type      string // GC or Full GC
+	Reason    string
+	MainEvent GCEvent
+	Time      string // In Seconds
+	GenEvents []struct {
+		Type  string
 		Event GCEvent
 	}
 }
 
-// === Token Constants ===
-type TokenPair struct {
-	token   Token
-	literal string
+// === Parser ===
+type Parser struct {
+	TokenPairs []TokenPair
+	Tokens     []Token
+	Pos        int
 }
 
-type Token int
+func NewParser(log string) *Parser {
+	tkps := Tokenize(log)
+	var tks []Token
 
-const (
-	OPEN_SQUARE Token = iota
-	CLOSE_SQUARE
-	OPEN_PAREN
-	CLOSE_PAREN
-	COMMA
-	COLON
-
-	LABEL
-	SIZE
-	TIME
-	ARROW
-
-	EOF
-
-	GC
-	FULL_GC
-
-	NUL
-)
-
-// NewGCLog is the main entry point to parse the garbage-collection log.
-// func NewGCLog(log string) (*GCLog, error) {}
-
-// func newGCEvent(log string) (GCEvent, error) {}
-
-func Tokenize(log string) []TokenPair {
-	var tps []TokenPair
-
-	s := newStream(log)
-	for !s.eof() {
-		t, l := s.scan()
-		tps = append(tps, TokenPair{t, l})
+	for _, tp := range tkps {
+		tks = append(tks, tp.Token)
 	}
 
-	return tps
-}
-
-// ==== Stream ====
-type stream struct {
-	input []rune
-
-	pos  int
-	line int
-	col  int
-}
-
-func newStream(input string) *stream {
-	return &stream{
-		input: []rune(input),
-		pos:   0,
-		line:  0,
-		col:   0,
+	return &Parser{
+		Tokens:     tks,
+		TokenPairs: tkps,
+		Pos:        0,
 	}
 }
 
-func (s *stream) peek() rune {
-	return s.input[s.pos]
-}
+func (p *Parser) Parse() (*GCLog, error) {
+	var gcLog GCLog
 
-func (s *stream) next() rune {
-	r := s.input[s.pos]
-	s.pos++
-	if r == '\n' {
-		s.line++
-		s.col = 0
-	} else {
-		s.col++
-	}
-	return r
-}
+	for !p.eof() {
+		if p.peek() == OPEN_SQUARE {
+			p.next() // '['
 
-func (s *stream) eof() bool {
-	return s.pos == len(s.input)
-}
+			if p.peek() == GC || p.peek() == FULL_GC {
+				gcLog.Type = p.nextPair().Literal
 
-func (s *stream) croak(msg string) error {
-	return errors.New(fmt.Sprintf("%v (%d:%d)", msg, s.line, s.col))
-}
+				// Parse Reason
+				p.next()                            // '('
+				gcLog.Reason = p.nextPair().Literal // 'Reason'
+				p.next()                            // ')'
+			} else if p.peek() == LABEL && p.dPeek() == COLON {
+				genEvent := struct {
+					Type  string
+					Event GCEvent
+				}{}
+				genEvent.Type = p.nextPair().Literal
 
-func (s *stream) dPeek() rune {
-	return s.input[s.pos+1]
-}
-
-func (s *stream) scan() (Token, string) {
-	if s.eof() {
-		return EOF, ""
-	}
-
-	r := s.peek()
-
-	// Multi Characters
-	if isLetter(r) {
-		return s.scanText()
-	} else if isWhitespace(r) {
-		s.scanWhiteSpace()
-		return s.scan()
-	} else if isNumber(r) {
-		return s.scanNumbers()
-	} else if isHyphen(r) {
-		if s.dPeek() == '>' {
-			var aBuf bytes.Buffer
-			for i := 0; i < 2; i++ {
-				aBuf.WriteRune(s.next())
-			}
-			return ARROW, aBuf.String()
-		}
-	}
-
-	// Single Characters
-	switch r {
-	case '[':
-		return OPEN_SQUARE, string(s.next())
-	case ']':
-		return CLOSE_SQUARE, string(s.next())
-	case '(':
-		return OPEN_PAREN, string(s.next())
-	case ')':
-		return CLOSE_PAREN, string(s.next())
-	case ',':
-		return COMMA, string(s.next())
-	case ':':
-		return COLON, string(s.next())
-	}
-
-	return NUL, ""
-}
-
-func (s *stream) scanWhiteSpace() {
-	for {
-		if s.eof() || !isWhitespace(s.peek()) {
-			break
-		} else {
-			s.next()
-		}
-	}
-}
-
-func (s *stream) scanText() (Token, string) {
-	var buf bytes.Buffer
-	buf.WriteRune(s.next())
-
-	// We allow for two words with a space in between
-	for {
-		// fmt.Println(buf.String())
-		if s.eof() {
-			break
-		} else if s.peek() == ' ' {
-			if isLetter(s.dPeek()) {
-				buf.WriteRune(s.next()) // The ' '
-				for {
-					if !s.eof() && isLetter(s.peek()) {
-						buf.WriteRune(s.next())
-					} else {
-						break
-					}
+				// TODO: Fix this
+				if genEvent.Type == "Times" {
+					continue
 				}
-			} else {
-				break
+
+				p.next() // Throw away the ':'
+				event, err := p.parseEvent()
+				if err != nil {
+					return nil, err
+				}
+				genEvent.Event = *event
+				gcLog.GenEvents = append(gcLog.GenEvents, genEvent)
 			}
-		} else if !isLetter(s.peek()) {
-			break
+		} else if p.peek() == CLOSE_SQUARE && p.dPeek() == SIZE {
+			p.next() // ']'
+			event, err := p.parseEvent()
+			if err != nil {
+				return nil, err
+			}
+			gcLog.MainEvent = *event
+		} else if p.peek() == COMMA && p.dPeek() == TIME {
+			p.next() // ','
+			gcLog.Time = p.nextPair().Literal
+			p.next() // 'secs'
 		} else {
-			buf.WriteRune(s.next())
+			p.next()
+		}
+
+		// TODO: The Times section
+	}
+
+	return &gcLog, nil
+}
+
+func (p *Parser) parseEvent() (*GCEvent, error) {
+	var gcEvent GCEvent
+	// Events are always in this 6 Token format:
+	// SIZE->SIZE(SIZE)
+	for i := 0; i < 6; i++ {
+		switch i {
+		case 0:
+			s, err := formatSize(p.nextPair().Literal)
+			if err != nil {
+				return nil, err
+			}
+			gcEvent.BeforeSize = s
+		case 2:
+			s, err := formatSize(p.nextPair().Literal)
+			if err != nil {
+				return nil, err
+			}
+			gcEvent.AfterSize = s
+		case 4:
+			s, err := formatSize(p.nextPair().Literal)
+			if err != nil {
+				return nil, err
+			}
+			gcEvent.TotalSize = s
+		default:
+			p.next() // Throw away other tokens
 		}
 	}
 
-	switch buf.String() {
-	case "GC":
-		return GC, buf.String()
-	case "Full GC":
-		return FULL_GC, buf.String()
-	}
-
-	return LABEL, buf.String()
+	return &gcEvent, nil
 }
 
-// Only ever SIZE or TIME
-func (s *stream) scanNumbers() (Token, string) {
-	var buf bytes.Buffer
-	buf.WriteRune(s.next())
-
-	for {
-		if s.eof() {
-			break
-		} else if s.peek() == 'K' {
-			buf.WriteRune(s.next())
-			return SIZE, buf.String()
-		} else if s.peek() != '.' && !isNumber(s.peek()) {
-			break
-		} else {
-			buf.WriteRune(s.next())
-		}
-	}
-
-	return TIME, buf.String()
+func formatSize(size string) (int, error) {
+	s := size[:len(size)-1] // Pop off the K
+	return strconv.Atoi(s)
 }
 
-// === Utility Functions ===
-func isWhitespace(ch rune) bool {
-	return ch == ' ' || ch == '\t' || ch == '\n'
+func (p *Parser) next() Token {
+	t := p.Tokens[p.Pos]
+	p.Pos++
+	return t
 }
 
-func isLetter(ch rune) bool {
-	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
+func (p *Parser) peek() Token {
+	return p.Tokens[p.Pos]
 }
 
-func isNumber(ch rune) bool {
-	return ch >= '0' && ch <= '9'
+func (p *Parser) dPeek() Token {
+	return p.Tokens[p.Pos+1]
 }
 
-func isHyphen(ch rune) bool {
-	return ch == '-'
+func (p *Parser) eof() bool {
+	return p.Pos == len(p.Tokens)-1
+}
+
+func (p *Parser) nextPair() TokenPair {
+	t := p.TokenPairs[p.Pos]
+	p.Pos++
+	return t
+}
+
+func (p *Parser) peekPair() TokenPair {
+	return p.TokenPairs[p.Pos]
 }
