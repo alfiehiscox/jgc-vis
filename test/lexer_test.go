@@ -182,3 +182,46 @@ func TestJava8TokeniserWithMajorGCLog(t *testing.T) {
 		}
 	}
 }
+
+func TestJava8TokeniserWithSystemGC(t *testing.T) {
+	log := "[GC (System.gc()) [PSYoungGen: 0K->0K(0K)]]"
+
+	expected := []parser.TokenPair{
+		{parser.OPEN_SQUARE, "["},
+		{parser.GC, "GC"},
+		{parser.OPEN_PAREN, "("},
+		{parser.LABEL, "System.gc"},
+		{parser.OPEN_PAREN, "("},
+		{parser.CLOSE_PAREN, ")"},
+		{parser.CLOSE_PAREN, ")"},
+		{parser.OPEN_SQUARE, "["},
+		{parser.LABEL, "PSYoungGen"},
+		{parser.COLON, ":"},
+		{parser.SIZE, "0K"},
+		{parser.ARROW, "->"},
+		{parser.SIZE, "0K"},
+		{parser.OPEN_PAREN, "("},
+		{parser.SIZE, "0K"},
+		{parser.CLOSE_PAREN, ")"},
+		{parser.CLOSE_SQUARE, "]"},
+		{parser.CLOSE_SQUARE, "]"},
+	}
+
+	tokenPairs := parser.Tokenize(log)
+
+	if len(expected) != len(tokenPairs) {
+		t.Errorf("Expected: %v", expected)
+		t.Errorf("Actual  : %v", tokenPairs)
+		t.Fatalf("Length does not match: Expected len=%d, Got len=%d", len(expected), len(tokenPairs))
+	}
+
+	for i, v := range tokenPairs {
+		if v.Token != expected[i].Token {
+			t.Errorf("Token does not match: Expected token=%v, Got token=%v", expected[i].Token, v.Token)
+		}
+
+		if v.Literal != expected[i].Literal {
+			t.Errorf("Literal does not match: Expected literal=%v, Got literal=%v", expected[i].Literal, v.Literal)
+		}
+	}
+}
