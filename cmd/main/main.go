@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/alfiehiscox/jgc-vis/parser"
+	"github.com/alfiehiscox/jgc-vis/pkg/parser"
 )
 
 func main() {
@@ -18,12 +18,13 @@ func main() {
 	fs := string(bs)
 	ss := strings.Split(fs, "\n")
 
-	s := ss[3]
-	parser := parser.NewParser(s)
-	log, err := parser.Parse()
-	if err != nil {
-		panic(err)
+	for i, l := range ss {
+		parser := parser.NewParser(l)
+		log, err := parser.Parse()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(i, log)
 	}
 
-	fmt.Println(log)
 }
