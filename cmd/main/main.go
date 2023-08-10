@@ -10,7 +10,7 @@ import (
 
 func main() {
 
-	bs, err := os.ReadFile("resource/java8-test.log")
+	bs, err := os.ReadFile("../resource/java8-test.log")
 	if err != nil {
 		panic(err)
 	}
