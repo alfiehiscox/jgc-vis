@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"github.com/alfiehiscox/jgc-vis/pkg/parser"
 )
@@ -147,6 +148,79 @@ func TestJava8SystemGCLogToGCLog(t *testing.T) {
 		t.Errorf("actual  : %v", *actual)
 		t.Fatalf("actual and exepcted did not match.")
 	}
+}
+
+func TestJava8TimestampToGCLog(t *testing.T) {
+	log := "2023-08-10T11:09:31.795+0000: [Full GC (Ergonomics) [PSYoungGen: 57344K->0K(113664K)] [ParOldGen: 337435K->261246K(339968K)] 394779K->261246K(453632K), [Metaspace: 2866K->2866K(1056768K)], 0.3415608 secs] [Times: user=1.26 sys=0.00, real=0.35 secs]"
+
+	timestamp, err := time.Parse("2006-01-02T15:04:05-0700", "2023-08-10T11:09:31.795+0000")
+	if err != nil {
+		t.Fatal("Error parsing date format for test")
+	}
+
+	expected := parser.GCLog{
+		Timestamp: timestamp,
+		Type:      "Full GC",
+		Reason:    "Ergonomics",
+		MainEvent: parser.GCEvent{
+			BeforeSize: 394779,
+			AfterSize:  261246,
+			TotalSize:  453632,
+		},
+		Time: "0.3415608",
+		GenEvents: []struct {
+			Type  string
+			Event parser.GCEvent
+		}{
+			{
+				Type: "PSYoungGen",
+				Event: parser.GCEvent{
+					BeforeSize: 57344,
+					AfterSize:  0,
+					TotalSize:  113664,
+				},
+			},
+			{
+				Type: "ParOldGen",
+				Event: parser.GCEvent{
+					BeforeSize: 337435,
+					AfterSize:  261246,
+					TotalSize:  339968,
+				},
+			},
+			{
+				Type: "Metaspace",
+				Event: parser.GCEvent{
+					BeforeSize: 2866,
+					AfterSize:  2866,
+					TotalSize:  1056768,
+				},
+			},
+		},
+	}
+
+	parser := parser.NewParser(log)
+	actual, err := parser.Parse()
+
+	if err != nil {
+		t.Fatalf("error from parsing: %s", err)
+	}
+
+	ok := checkGCLogWithTimestamp(*actual, expected)
+
+	if !ok {
+		t.Errorf("expected: %v", expected)
+		t.Errorf("actual  : %v", *actual)
+		t.Fatalf("actual and exepcted did not match.")
+	}
+}
+
+func checkGCLogWithTimestamp(actual, expected parser.GCLog) bool {
+	if actual.Timestamp != expected.Timestamp {
+		return false
+	}
+
+	return checkGCLog(actual, expected)
 }
 
 func checkGCLog(actual, expected parser.GCLog) bool {

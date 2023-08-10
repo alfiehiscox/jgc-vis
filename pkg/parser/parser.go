@@ -5,6 +5,8 @@ import (
 	"time"
 )
 
+const TIMESTAMP_LAYOUT = "2006-01-02T15:04:05-0700"
+
 // === Main Structures ===
 type GCEvent struct {
 	BeforeSize int // In KB
@@ -91,6 +93,12 @@ func (p *Parser) Parse() (*GCLog, error) {
 			p.next() // ','
 			gcLog.Time = p.nextPair().Literal
 			p.next() // 'secs'
+		} else if p.peek() == TIMESTAMP {
+			t, err := time.Parse(TIMESTAMP_LAYOUT, p.nextPair().Literal)
+			if err != nil {
+				return nil, err
+			}
+			gcLog.Timestamp = t
 		} else {
 			p.next()
 		}
