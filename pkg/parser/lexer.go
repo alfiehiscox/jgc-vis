@@ -28,6 +28,8 @@ const (
 	TIME
 	ARROW
 
+	TIMESTAMP
+
 	EOF
 
 	GC
@@ -36,17 +38,19 @@ const (
 	NUL
 )
 
-// NewGCLog is the main entry point to parse the garbage-collection log.
-// func NewGCLog(log string) (*GCLog, error) {}
-
-// func newGCEvent(log string) (GCEvent, error) {}
-
 func Tokenize(log string) []TokenPair {
 	var tps []TokenPair
 
+	// Provides a callback via a closure to pop off TokenPairs by 'scan' function
+	pop := func() {
+		if len(tps) > 0 {
+			tps = tps[:len(tps)-1]
+		}
+	}
+
 	s := newStream(log)
 	for !s.eof() {
-		t, l := s.scan()
+		t, l := s.scan(pop)
 		tps = append(tps, TokenPair{t, l})
 	}
 
@@ -99,7 +103,16 @@ func (s *stream) dPeek() rune {
 	return s.input[s.pos+1]
 }
 
-func (s *stream) scan() (Token, string) {
+func (s *stream) retreat(by int) rune {
+	if s.pos-by < 0 {
+		s.pos = 0
+		return s.input[s.pos]
+	}
+	s.pos = (s.pos - by)
+	return s.input[s.pos]
+}
+
+func (s *stream) scan(pop func()) (Token, string) {
 	if s.eof() {
 		return EOF, ""
 	}
@@ -111,7 +124,7 @@ func (s *stream) scan() (Token, string) {
 		return s.scanText()
 	} else if isWhitespace(r) {
 		s.scanWhiteSpace()
-		return s.scan()
+		return s.scan(pop)
 	} else if isNumber(r) {
 		return s.scanNumbers()
 	} else if isHyphen(r) {
@@ -121,6 +134,12 @@ func (s *stream) scan() (Token, string) {
 				aBuf.WriteRune(s.next())
 			}
 			return ARROW, aBuf.String()
+		} else if isNumber(s.dPeek()) {
+			// PARSE TIMESTAMP
+			// TIMESTAMP LAYOUT IS ALWAYS: 2023-08-10T11:09:31.795+0000
+			pop()        // Get rid of 'yyyy' that has already been added as token
+			s.retreat(4) // Back to beginning
+			return s.scanTimestamp()
 		}
 	}
 
@@ -153,6 +172,17 @@ func (s *stream) scanWhiteSpace() {
 			s.next()
 		}
 	}
+}
+
+func (s *stream) scanTimestamp() (Token, string) {
+	var buf bytes.Buffer
+
+	// Increment by 28 character as format is constant for now: 2023-08-10T11:09:31.795+0000
+	for i := 0; i < 28; i++ {
+		buf.WriteRune(s.next())
+	}
+
+	return TIMESTAMP, buf.String()
 }
 
 func (s *stream) scanText() (Token, string) {

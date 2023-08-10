@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strconv"
+	"time"
 )
 
 // === Main Structures ===
@@ -12,7 +13,8 @@ type GCEvent struct {
 }
 
 type GCLog struct {
-	Type      string // GC or Full GC
+	Timestamp time.Time // Only if DateTimeStamps are enabled
+	Type      string    // GC or Full GC
 	Reason    string
 	MainEvent GCEvent
 	Time      string // In Seconds
