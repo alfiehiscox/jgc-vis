@@ -379,3 +379,90 @@ func TestJava8TokeniserMajorGCWithTimestamp(t *testing.T) {
 	}
 
 }
+
+func TestJava4TokeniseWithMinorGC(t *testing.T) {
+	log := "12.594: [Full GC (Ergonomics) [PSYoungGen: 57344K->0K(113664K)] [ParOldGen: 337435K->261246K(339968K)] 394779K->261246K(453632K), [Metaspace: 2866K->2866K(1056768K)], 0.3415608 secs] [Times: user=1.26 sys=0.00, real=0.35 secs]"
+
+	expected := []parser.TokenPair{
+		{Token: parser.TIME, Literal: "12.594"},
+		{Token: parser.COLON, Literal: ":"},
+		{Token: parser.OPEN_SQUARE, Literal: "["},
+		{Token: parser.FULL_GC, Literal: "Full GC"},
+		{Token: parser.OPEN_PAREN, Literal: "("},
+		{Token: parser.LABEL, Literal: "Ergonomics"},
+		{Token: parser.CLOSE_PAREN, Literal: ")"},
+		{Token: parser.OPEN_SQUARE, Literal: "["},
+		{Token: parser.LABEL, Literal: "PSYoungGen"},
+		{Token: parser.COLON, Literal: ":"},
+		{Token: parser.SIZE, Literal: "57344K"},
+		{Token: parser.ARROW, Literal: "->"},
+		{Token: parser.SIZE, Literal: "0K"},
+		{Token: parser.OPEN_PAREN, Literal: "("},
+		{Token: parser.SIZE, Literal: "113664K"},
+		{Token: parser.CLOSE_PAREN, Literal: ")"},
+		{Token: parser.CLOSE_SQUARE, Literal: "]"},
+		{Token: parser.OPEN_SQUARE, Literal: "["},
+		{Token: parser.LABEL, Literal: "ParOldGen"},
+		{Token: parser.COLON, Literal: ":"},
+		{Token: parser.SIZE, Literal: "337435K"},
+		{Token: parser.ARROW, Literal: "->"},
+		{Token: parser.SIZE, Literal: "261246K"},
+		{Token: parser.OPEN_PAREN, Literal: "("},
+		{Token: parser.SIZE, Literal: "339968K"},
+		{Token: parser.CLOSE_PAREN, Literal: ")"},
+		{Token: parser.CLOSE_SQUARE, Literal: "]"},
+		{Token: parser.SIZE, Literal: "394779K"},
+		{Token: parser.ARROW, Literal: "->"},
+		{Token: parser.SIZE, Literal: "261246K"},
+		{Token: parser.OPEN_PAREN, Literal: "("},
+		{Token: parser.SIZE, Literal: "453632K"},
+		{Token: parser.CLOSE_PAREN, Literal: ")"},
+		{Token: parser.COMMA, Literal: ","},
+		{Token: parser.OPEN_SQUARE, Literal: "["},
+		{Token: parser.LABEL, Literal: "Metaspace"},
+		{Token: parser.COLON, Literal: ":"},
+		{Token: parser.SIZE, Literal: "2866K"},
+		{Token: parser.ARROW, Literal: "->"},
+		{Token: parser.SIZE, Literal: "2866K"},
+		{Token: parser.OPEN_PAREN, Literal: "("},
+		{Token: parser.SIZE, Literal: "1056768K"},
+		{Token: parser.CLOSE_PAREN, Literal: ")"},
+		{Token: parser.CLOSE_SQUARE, Literal: "]"},
+		{Token: parser.COMMA, Literal: ","},
+		{Token: parser.TIME, Literal: "0.3415608"},
+		{Token: parser.LABEL, Literal: "secs"},
+		{Token: parser.CLOSE_SQUARE, Literal: "]"},
+		{Token: parser.OPEN_SQUARE, Literal: "["},
+		{Token: parser.LABEL, Literal: "Times"},
+		{Token: parser.COLON, Literal: ":"},
+		{Token: parser.LABEL, Literal: "user"},
+		{Token: parser.EQUAL, Literal: "="},
+		{Token: parser.TIME, Literal: "1.26"},
+		{Token: parser.LABEL, Literal: "sys"},
+		{Token: parser.EQUAL, Literal: "="},
+		{Token: parser.TIME, Literal: "0.00"},
+		{Token: parser.COMMA, Literal: ","},
+		{Token: parser.LABEL, Literal: "real"},
+		{Token: parser.EQUAL, Literal: "="},
+		{Token: parser.TIME, Literal: "0.35"},
+		{Token: parser.LABEL, Literal: "secs"},
+		{Token: parser.CLOSE_SQUARE, Literal: "]"},
+	}
+
+	tokenPairs := parser.Tokenize(log)
+
+	if len(expected) != len(tokenPairs) {
+		t.Fatalf("Length does not match: Expected len=%d, Got len=%d", len(expected), len(tokenPairs))
+	}
+
+	for i, v := range tokenPairs {
+		if v.Token != expected[i].Token {
+			t.Errorf("Token does not match: Expected token=%v, Got token=%v", expected[i].Token, v.Token)
+		}
+
+		if v.Literal != expected[i].Literal {
+			t.Errorf("Literal does not match: Expected literal=%v, Got literal=%v", expected[i].Literal, v.Literal)
+		}
+	}
+
+}

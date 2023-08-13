@@ -3,28 +3,15 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
-	"github.com/alfiehiscox/jgc-vis/pkg/parser"
+	"github.com/alfiehiscox/jgc-vis/pkg/view"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func main() {
-
-	bs, err := os.ReadFile("../resource/java8-test.log")
-	if err != nil {
-		panic(err)
+	m := view.Model{}
+	if _, err := tea.NewProgram(m).Run(); err != nil {
+		fmt.Println("Error running program:", err)
+		os.Exit(1)
 	}
-
-	fs := string(bs)
-	ss := strings.Split(fs, "\n")
-
-	for i, l := range ss {
-		parser := parser.NewParser(l)
-		log, err := parser.Parse()
-		if err != nil {
-			panic(err)
-		}
-		fmt.Println(i, log)
-	}
-
 }
