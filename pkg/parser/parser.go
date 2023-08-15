@@ -1,7 +1,9 @@
 package parser
 
 import (
+	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -172,4 +174,27 @@ func (p *Parser) nextPair() TokenPair {
 
 func (p *Parser) peekPair() TokenPair {
 	return p.TokenPairs[p.Pos]
+}
+
+func FetchLogs(file string) ([]GCLog, error) {
+	var logs []GCLog
+
+	bs, err := os.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
+
+	fs := string(bs)
+	ss := strings.Split(fs, "\n")
+
+	for _, l := range ss {
+		parser := NewParser(l)
+		log, err := parser.Parse()
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, *log)
+	}
+
+	return logs, nil
 }
