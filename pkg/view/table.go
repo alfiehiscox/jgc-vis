@@ -16,6 +16,7 @@ var (
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("240"))
 	tableHeight = 15
+	tableWidth  = 100
 
 	// Timers
 	wait = time.Second * 5
@@ -27,9 +28,9 @@ var cols []table.Column = []table.Column{
 	{Title: "Timestamp", Width: 25},
 	{Title: "Type", Width: 7},
 	{Title: "Reason", Width: 20},
-	{Title: "Before Size", Width: 12},
-	{Title: "After Size", Width: 10},
+	{Title: "Delta", Width: 10},
 	{Title: "Total Size", Width: 10},
+	{Title: "Time", Width: 10},
 }
 
 // Using https://github.com/charmbracelet/bubbletea/blob/master/examples/realtime/main.go as
@@ -42,11 +43,11 @@ type errMsg struct{ err error }
 func (e errMsg) Error() string { return e.err.Error() }
 
 // Sends the Logs through on a given channel
-func PollLogsForData(c chan []parser.GCLog) tea.Cmd {
+func PollLogsForData(c chan []parser.GCLog, file string) tea.Cmd {
 	return func() tea.Msg {
 		for {
 			// Fetch
-			logs, err := parser.FetchLogs(FileName)
+			logs, err := parser.FetchLogs(file)
 			if err != nil {
 				return errMsg{err}
 			}
@@ -68,14 +69,15 @@ func WaitForLogs(c chan []parser.GCLog) tea.Cmd {
 func logsToRows(logs []parser.GCLog) []table.Row {
 	var rows []table.Row
 	for i, log := range logs {
+		delta := log.MainEvent.AfterSize - log.MainEvent.BeforeSize
 		rows = append(rows, []string{
 			fmt.Sprint(i),
 			log.Timestamp.Format(time.ANSIC),
 			log.Type,
 			log.Reason,
-			fmt.Sprint(log.MainEvent.BeforeSize),
-			fmt.Sprint(log.MainEvent.AfterSize),
-			fmt.Sprint(log.MainEvent.TotalSize),
+			fmt.Sprint(delta),
+			fmt.Sprint(log.MainEvent.TotalSize) + "K",
+			log.Time + "secs",
 		})
 	}
 	return rows
@@ -100,6 +102,7 @@ func NewTable() table.Model {
 		table.WithRows([]table.Row{}),
 		table.WithFocused(true),
 		table.WithHeight(tableHeight),
+		table.WithWidth(tableWidth),
 	)
 
 	table.SetStyles(s)

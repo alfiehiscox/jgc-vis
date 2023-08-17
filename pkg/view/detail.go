@@ -9,15 +9,17 @@ import (
 )
 
 var (
+	detailsWidth = 36
 	detailsStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("240")).
-			Height(17)
+			Height(17).
+			Width(detailsWidth)
 	titleStyle = lipgloss.NewStyle().
 			BorderStyle(lipgloss.NormalBorder()).
 			BorderForeground(lipgloss.Color("240")).
 			BorderBottom(true).
-			Width(35)
+			Width(detailsWidth)
 )
 
 func logToDetails(log parser.GCLog) string {
@@ -47,17 +49,16 @@ func getYoungGenerationDetails(log parser.GCLog) string {
 	strings := "  Pre-GC: " + fmt.Sprint(event.BeforeSize) + "K" + "\n"
 	strings += "  Post-GC: " + fmt.Sprint(event.AfterSize) + "K" + "\n"
 	strings += "  Total: " + fmt.Sprint(event.TotalSize) + "K" + "\n"
-
 	return strings
 }
 
-func logToGenerations(log parser.GCLog) string {
-	strings := ""
-	for _, g := range log.GenEvents {
-		strings += "  " + g.Type + "\n"
-		strings += "  - Pre-GC: " + fmt.Sprint(g.Event.BeforeSize) + "\n"
-		strings += "  - Post-GC: " + fmt.Sprint(g.Event.AfterSize) + "\n"
-		strings += "  - Total: " + fmt.Sprint(g.Event.TotalSize) + "\n"
-	}
-	return strings
-}
+// func logToGenerations(log parser.GCLog) string {
+// 	strings := ""
+// 	for _, g := range log.GenEvents {
+// 		strings += "  " + g.Type + "\n"
+// 		strings += "  - Pre-GC: " + fmt.Sprint(g.Event.BeforeSize) + "\n"
+// 		strings += "  - Post-GC: " + fmt.Sprint(g.Event.AfterSize) + "\n"
+// 		strings += "  - Total: " + fmt.Sprint(g.Event.TotalSize) + "\n"
+// 	}
+// 	return strings
+// }

@@ -9,20 +9,24 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var FileName = "/Users/alfiehiscox/Code/alfiehiscox/go/jgc-vis/resource/java8-test-timestamp.log"
-
 type Model struct {
+	FileName string
+
 	Bus      chan []parser.GCLog
 	Table    table.Model
 	Logs     []parser.GCLog
 	Selected parser.GCLog
-	Error    error
+
+	Width  int
+	Height int
+
+	Error error
 }
 
 // Start the timers off going
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(
-		PollLogsForData(m.Bus),
+		PollLogsForData(m.Bus, m.FileName),
 		WaitForLogs(m.Bus),
 	)
 }
@@ -50,6 +54,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			m.Selected = m.Logs[i]
 		}
+	case tea.WindowSizeMsg:
+		m.Width = msg.Width
+		m.Height = msg.Height
 	}
 	m.Table, cmd = m.Table.Update(msg)
 	return m, tea.Batch(cmd, WaitForLogs(m.Bus))
@@ -57,12 +64,20 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) View() string {
 	table := baseStyle.Render(m.Table.View())
-	test := logToDetails(m.Selected)
+	details := logToDetails(m.Selected)
 	timeGraph := NewTimeGraph(m.Logs)
 	sizeGraph := NewSizeGraph(m.Logs)
+
+	var tableAndDetails string
+	if m.Width > tableWidth+detailsWidth {
+		tableAndDetails = lipgloss.JoinHorizontal(lipgloss.Top, table, details)
+	} else {
+		tableAndDetails = lipgloss.JoinVertical(lipgloss.Top, table, details)
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Top,
-		lipgloss.JoinHorizontal(lipgloss.Top, table, test),
+		tableAndDetails,
 		lipgloss.JoinHorizontal(lipgloss.Top, sizeGraph, timeGraph),
 	) + "\n"
 }
