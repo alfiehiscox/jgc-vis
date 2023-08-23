@@ -215,6 +215,10 @@ func TestJava8TimestampToGCLog(t *testing.T) {
 	}
 }
 
+func TestJava8TimeSinceStart(t *testing.T) {
+	log := "2023-08-10T11:09:31.795+0000: [Full GC (Ergonomics) [PSYoungGen: 57344K->0K(113664K)] [ParOldGen: 337435K->261246K(339968K)] 394779K->261246K(453632K), [Metaspace: 2866K->2866K(1056768K)], 0.3415608 secs] [Times: user=1.26 sys=0.00, real=0.35 secs]"
+}
+
 func checkGCLogWithTimestamp(actual, expected parser.GCLog) bool {
 	if actual.Timestamp != expected.Timestamp {
 		return false
